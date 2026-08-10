@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đang mở bài…</title>
+<style>
+:root{
+  --bg:#0f1115; --card:#171a21; --line:#262b36; --fg:#e7e9ee; --dim:#98a0b3;
+  --acc:#5b8cff; --ok:#3ddc97; --warn:#ffb454; --code:#12151c;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f7f8fa; --card:#fff; --line:#e3e6ec; --fg:#1a1d24; --dim:#5f6672; --code:#f2f4f8; }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);
+ font:16px/1.65 "Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;}
+a{color:var(--acc)}
+.wrap{max-width:900px;margin:0 auto;padding:22px 16px 70px}
+.top{position:sticky;top:0;z-index:9;background:var(--bg);
+ border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;
+ align-items:center;flex-wrap:wrap}
+.top a{text-decoration:none;font-size:14px;color:var(--fg);white-space:nowrap}
+.top a:hover{color:var(--acc)}
+.spacer{flex:1}
+.btn{display:inline-block;font-size:13.5px;text-decoration:none;padding:5px 11px;
+ border-radius:7px;border:1px solid var(--line);color:var(--fg);white-space:nowrap;
+ background:none;cursor:pointer;font-family:inherit}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.nb{color:var(--warn);border-color:rgba(255,180,84,.4)}
+
+.doc{max-width:820px;margin:0 auto;padding:20px 16px 90px}
+.doc h1{font-size:26px;line-height:1.3;margin:.6em 0 .4em}
+.doc h2{font-size:21px;margin:1.4em 0 .4em;padding-bottom:.25em;border-bottom:1px solid var(--line)}
+.doc h3{font-size:18px;margin:1.2em 0 .3em}
+.doc img{max-width:100%;height:auto;border-radius:8px;display:block;margin:14px 0}
+.doc table{border-collapse:collapse;width:100%;font-size:14.5px;display:block;overflow-x:auto}
+.doc th,.doc td{border:1px solid var(--line);padding:7px 10px;text-align:left}
+.doc th{background:rgba(127,127,127,.08)}
+.doc blockquote{margin:14px 0;padding:2px 14px;border-left:3px solid var(--acc);color:var(--dim)}
+.doc pre{background:var(--code);border:1px solid var(--line);border-radius:9px;
+ padding:13px;overflow-x:auto;font-size:13.5px;line-height:1.5}
+.doc code{background:rgba(127,127,127,.16);padding:2px 5px;border-radius:4px;
+ font-family:Consolas,"SF Mono",monospace;font-size:.9em}
+.doc pre code{background:none;padding:0;font-size:13.5px}
+.doc hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.cell{margin:16px 0}
+.cell .lbl{font-size:11.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.out{background:var(--code);border:1px solid var(--line);border-left:3px solid var(--ok);
+ border-radius:0 9px 9px 0;padding:11px 13px;overflow-x:auto;font-size:13px;
+ font-family:Consolas,monospace;white-space:pre-wrap;word-break:break-word;margin-top:-1px}
+.out img{margin:8px 0;background:#fff;padding:6px;border-radius:6px}
+.err{border-left-color:#ff6b6b;color:#ff9c9c}
+.navbot{display:flex;gap:10px;justify-content:space-between;margin-top:34px;
+ padding-top:18px;border-top:1px solid var(--line);flex-wrap:wrap}
+.loading{color:var(--dim);padding:36px 0;text-align:center}
+.mark{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--dim);cursor:pointer}
+.mark input{width:18px;height:18px;accent-color:var(--ok);cursor:pointer}
+</style>
+</head>
+<body>
+<div class="top">
+  <a href="index.html">← Mục lục</a>
+  <span class="spacer"></span>
+  <label class="mark"><input type="checkbox" id="markDone"> đã học</label>
+  <a class="btn" id="colab" target="_blank" rel="noopener" style="display:none">Mở Colab</a>
+  <a class="btn" id="ghlink" target="_blank" rel="noopener">Xem gốc</a>
+</div>
+<div class="doc" id="doc"><p class="loading">Đang tải bài…</p></div>
+
+<script src="assets/marked.min.js"></script>
+<script src="bai-hoc.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const FILE = q.get("f") || "";
+const LID  = q.get("id") || "";
+const KEY  = "ai4b-progress";
+const doc  = document.getElementById("doc");
+const baseDir = FILE.substring(0, FILE.lastIndexOf("/") + 1);
+
+// danh sach phang de di bai truoc / bai sau
+const flat = [];
+LESSONS.forEach(g => g.lessons.forEach(l => {
+  flat.push({f: l.doc, id: l.id, name: l.name, g: g.label});
+  l.nb.forEach((n, i) => flat.push({
+    f: n, id: l.id, g: g.label,
+    name: l.name + " — thực hành" + (l.nb.length > 1 ? " " + (i+1) : "")
+  }));
+}));
+const idx = flat.findIndex(x => x.f === FILE);
+const meta = idx >= 0 ? flat[idx] : null;
+
+// danh dau da hoc
+const cb = document.getElementById("markDone");
+let done = new Set(JSON.parse(localStorage.getItem(KEY) || "[]"));
+cb.checked = done.has(LID);
+cb.onchange = () => {
+  cb.checked ? done.add(LID) : done.delete(LID);
+  localStorage.setItem(KEY, JSON.stringify([...done]));
+};
+
+document.getElementById("ghlink").href =
+  "https://github.com/" + GH_REPO + "/blob/main/" + FILE;
+if (FILE.endsWith(".ipynb")) {
+  const c = document.getElementById("colab");
+  c.style.display = "";
+  c.className = "btn pri";
+  c.href = "https://colab.research.google.com/github/" + GH_REPO + "/blob/main/" + FILE;
+}
+
+function fixUrl(u) {
+  if (!u || /^(https?:|data:|#|mailto:)/i.test(u)) return u;
+  return new URL(baseDir + u, location.href).pathname;
+}
+
+function fixLinks(root) {
+  root.querySelectorAll("img").forEach(im => {
+    const s = im.getAttribute("src");
+    if (s && !/^(https?:|data:)/i.test(s)) im.src = fixUrl(decodeURI(s));
+    im.loading = "lazy";
+  });
+  root.querySelectorAll("a").forEach(a => {
+    const h = a.getAttribute("href") || "";
+    if (/^https?:/i.test(h)) { a.target = "_blank"; a.rel = "noopener"; return; }
+    if (/\.(md|ipynb)($|[?#])/i.test(h)) {
+      const p = fixUrl(h.split("#")[0]).replace(/^\//, "");
+      a.href = "bai.html?f=" + encodeURIComponent(p) + "&id=" + encodeURIComponent(LID);
+    } else if (h && !h.startsWith("#")) {
+      a.href = fixUrl(h);
+    }
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderNotebook(nb) {
+  const out = [];
+  (nb.cells || []).forEach(c => {
+    const src = (c.source || []).join("");
+    if (c.cell_type === "markdown") {
+      out.push('<div class="cell">' + marked.parse(src) + '</div>');
+    } else if (c.cell_type === "code") {
+      if (!src.trim()) return;
+      let h = '<div class="cell"><div class="lbl">code</div><pre><code>'
+            + esc(src) + '</code></pre>';
+      (c.outputs || []).forEach(o => {
+        const d = o.data || {};
+        if (d["image/png"]) {
+          h += '<div class="out"><img src="data:image/png;base64,'
+             + String(d["image/png"]).replace(/\s/g, "") + '"></div>';
+        } else if (o.output_type === "error") {
+          h += '<div class="out err">' + esc(o.ename + ": " + o.evalue) + '</div>';
+        } else {
+          const t = d["text/plain"] || o.text;
+          if (t) h += '<div class="out">' + esc([].concat(t).join("")) + '</div>';
+        }
+      });
+      out.push(h + '</div>');
+    }
+  });
+  return out.join("");
+}
+
+fetch(FILE)
+  .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+  .then(txt => {
+    if (FILE.endsWith(".ipynb")) doc.innerHTML = renderNotebook(JSON.parse(txt));
+    else doc.innerHTML = marked.parse(txt);
+    fixLinks(doc);
+
+    const h1 = doc.querySelector("h1");
+    document.title = (meta ? meta.name : (h1 ? h1.textContent : "Bài học"))
+                   + " — Học AI tiếng Việt";
+
+    const nav = document.createElement("div");
+    nav.className = "navbot";
+    const mk = (t, i) => {
+      if (i < 0 || i >= flat.length) return '<span></span>';
+      return '<a class="btn" href="bai.html?f=' + encodeURIComponent(flat[i].f)
+           + '&id=' + encodeURIComponent(flat[i].id) + '">' + t + '</a>';
+    };
+    nav.innerHTML = mk("← Bài trước", idx - 1)
+                  + '<a class="btn" href="index.html">Mục lục</a>'
+                  + mk("Bài sau →", idx + 1);
+    doc.appendChild(nav);
+    if (location.hash) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) el.scrollIntoView();
+    }
+  })
+  .catch(e => {
+    doc.innerHTML = '<p class="loading">Không mở được bài này.<br><small>'
+      + esc(FILE) + " — " + esc(e.message) + '</small></p>';
+  });
+</script>
+</body></html>
