@@ -2,7 +2,7 @@
 
 Bản web đọc được trên điện thoại của khoá **[AI for Beginners](https://github.com/microsoft/AI-For-Beginners)** — giáo trình AI 12 tuần / 24 bài của Microsoft.
 
-**→ [Vào học](https://ai-for-beginners-vi.netlify.app)**
+**→ [Vào học](https://giacuong3231-png.github.io/ai-for-beginners-vi/)**
 
 ## Có gì ở đây
 
